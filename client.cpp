@@ -36,6 +36,8 @@ struct Remote {
 		) {
 			if (err.value() != 0)
 				std::cerr << "Error sending udp to " << endpoint.address() << '\n' << err << '\n';
+			//else std::cout << '.' << std::flush;
+			else std::cout << "sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n';
 		}
 		udp::endpoint endpoint;
 	} send_handler;

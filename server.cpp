@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <map>
+
 #include <asio.hpp>
 
 int main(int argc, char* argv[]) {
@@ -35,7 +36,7 @@ int main(int argc, char* argv[]) {
 				endpoint.address(asio::ip::make_address_v4(r.first.first));
 				endpoint.port(r.first.second);
 				int64_t message[32] = {1, int64_t(key.first), key.second};
-				std::sprintf((char*)&message[3], "\nconnected %i %i\n", key.first, key.second);
+				std::sprintf((char*)&message[3], "\nconnected %zu %i\n", key.first, key.second);
 				sock.send_to(asio::buffer(message, sizeof(message)), endpoint);
 			}
 			remotes.emplace(key, now);

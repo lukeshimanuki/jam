@@ -1,8 +1,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <unordered_map>
-#include "asio.hpp"
+#include <map>
+
+#include <asio.hpp>
+#include <portaudio.h>
+
+using asio::ip::udp;
 
 constexpr size_t buffer_size = 128;
 constexpr size_t num_buffers = 256;
@@ -12,6 +16,7 @@ int16_t mic_buffers[num_buffers][buffer_size];
 size_t prev_sample_idx = 0;
 size_t sample_idx = 0;
 udp::endpoint master_endpoint;
+udp::socket* sock;
 
 struct Remote {
 	udp::endpoint endpoint;
@@ -24,20 +29,22 @@ struct Remote {
 			const asio::error_code& err,
 			size_t bytes_transferred
 		) {
-			if (err != paNoError)
-				std::cerr << "Error sending udp to " << endpoint.address() << '\n';
+			if (err.value() != 0)
+				std::cerr << "Error sending udp to " << endpoint.address() << '\n' << err << '\n';
 		}
+		udp::endpoint endpoint;
 	} send_handler;
 
-	remote(uint32_t address, uint16_t port) {
-		endpoint.address(asio::ip::address_v4::make_address_v4(address));
+	Remote(uint32_t address, uint16_t port) {
+		endpoint.address(asio::ip::make_address_v4(address));
 		endpoint.port(port);
+		send_handler.endpoint = endpoint;
 		play_buffer_idx = 1;
 		last_buffer_idx = 0;
 	}
 };
 
-std::unordered_map<std::pair<uint32_t, uint16_t>, Remote> remotes;
+std::map<std::pair<uint32_t, uint16_t>, Remote> remotes;
 
 int sink_cb(
 	const void* inputBuffer, void* outputBuffer,
@@ -46,29 +53,23 @@ int sink_cb(
 	PaStreamCallbackFlags statusFlags,
 	void* userData
 ) {
-	// prevent unused variable warnings
-	void(inputBuffer);
-	void(timeInfo);
-	void(statusFlags);
-	void(userData);
-
 	int16_t* const out = (int16_t*)outputBuffer;
 	for (unsigned long frame = 0; frame < framesPerBuffer; ++frame) {
 		int32_t value = 0;
-		for (remote : remotes.values()) {
-			if (remote.last_buffer_idx >= remote.play_buffer_idx || 
-			(remote.last_buffer_idx < num_buffers / 4 && remote.play_buffer_idx > num_buffers * 3/4))
-				value += remote.buffers[remote.play_buffer_idx][frame];
+		for (auto& remote : remotes) {
+			if (remote.second.last_buffer_idx >= remote.second.play_buffer_idx || 
+			(remote.second.last_buffer_idx < num_buffers / 4 && remote.second.play_buffer_idx > num_buffers * 3/4))
+				value += remote.second.buffers[remote.second.play_buffer_idx][frame];
 		}
 		out[frame] = value / remotes.size();
 	}
-	for (remote : remotes.values()) {
-		if (remote.play_buffer_idx > num_buffers / 2 && remote.play_buffer_idx + 8 < remote.last_buffer_idx)
-			remote.play_buffer_idx += 3;
-		if (remote.last_buffer_idx < remote.play_buffer_idx &&
-		!(remote.play_buffer_idx > num_buffers * 3/4 && remote.last_buffer_idx < num_buffers / 4))
-			remote.play_buffer_idx -= 1;
-		remote.play_buffer_idx = (remote.play_buffer_idx + num_buffers + 1) % num_buffers;
+	for (auto& remote : remotes) {
+		if (remote.second.play_buffer_idx > num_buffers / 2 && remote.second.play_buffer_idx + 8 < remote.second.last_buffer_idx)
+			remote.second.play_buffer_idx += 3;
+		if (remote.second.last_buffer_idx < remote.second.play_buffer_idx &&
+		!(remote.second.play_buffer_idx > num_buffers * 3/4 && remote.second.last_buffer_idx < num_buffers / 4))
+			remote.second.play_buffer_idx -= 1;
+		remote.second.play_buffer_idx = (remote.second.play_buffer_idx + num_buffers + 1) % num_buffers;
 	}
 	return 0;
 }
@@ -82,14 +83,9 @@ int source_cb(
 ) {
 	std::memcpy(mic_buffers[buffer_idx], inputBuffer, framesPerBuffer * sizeof(int16_t));
 	mic_buffers[buffer_idx][buffer_size] = buffer_idx;
-	for (const auto& remote : remotes.values())
-		socket.async_send_to(asio::buffer(mic_buffers[buffer_idx], (buffer_size + 1) * sizeof(int16_t)), remote.endpoint, &remote.send_handler);
+	for (const auto& remote : remotes)
+		sock->async_send_to(asio::buffer(mic_buffers[buffer_idx], (buffer_size + 1) * sizeof(int16_t)), remote.second.endpoint, remote.second.send_handler);
 	buffer_idx = (buffer_idx + 1) % num_buffers;
-	// prevent unused variable warnings
-	void(outputBuffer);
-	void(timeInfo);
-	void(statusFlags);
-	void(userData);
 	return 0;
 }
 
@@ -101,8 +97,8 @@ struct {
 		const asio::error_code& err,
 		size_t bytes_transferred
 	) {
-		if (err != paNoError)
-			std::cerr << "Error receiving udp from master\n";
+		if (err.value() != 0)
+			std::cerr << "Error receiving udp from master\n" << err << '\n';
 
 		if (
 			endpoint.address() == master_endpoint.address()
@@ -112,6 +108,7 @@ struct {
 			uint32_t address = ((uint64_t*)buffer)[1];
 			uint16_t port = ((uint64_t*)buffer)[2];
 
+			const auto key = std::make_pair(address, port);
 			if (connect) {
 				if (remotes.find(key) == remotes.end()) {
 					remotes.emplace(key, Remote(address, port));
@@ -125,13 +122,13 @@ struct {
 			const auto remote = remotes.find(key);
 			if (remote != remotes.end()) {
 				const size_t buffer_idx = buffer[buffer_size];
-				std::memcpy(remote->buffers[buffer_idx], buffer, buffer_size * sizeof(int16_t));
-				if (buffer_idx > remote->last_buffer_idx || buffer_idx < int32_t(remote->last_buffer_idx) - num_buffers / 2)
-					remote->last_buffer_idx = buffer_idx;
+				std::memcpy(remote->second.buffers[buffer_idx], buffer, buffer_size * sizeof(int16_t));
+				if (buffer_idx > remote->second.last_buffer_idx || buffer_idx < int32_t(remote->second.last_buffer_idx) - num_buffers / 2)
+					remote->second.last_buffer_idx = buffer_idx;
 			}
 		}
 
-		socket.async_receive_from(asio::buffer(buffer, sizeof(buffer)), endpoint, this);
+		sock->async_receive_from(asio::buffer(buffer, sizeof(buffer)), endpoint, *this);
 	}
 } receive_handler;
 
@@ -139,7 +136,8 @@ void master_send_handler(
     const asio::error_code& err,
     std::size_t bytes_transferred
 ) {
-	if (err != paNoError) std::cerr << "Error sending test udp to master\n";
+	if (err.value() != 0)
+		std::cerr << "Error sending test udp to master\n" << err << '\n';
 }
 
 int main(int argc, char* argv[]) {
@@ -151,15 +149,20 @@ int main(int argc, char* argv[]) {
 	const char* const host = argc >= 2 ? argv[1] : default_host;
 	const char* const port = argc >= 3 ? argv[2] : default_port;
 
-	using asio::ip::udp;
 	asio::io_context io_context;
 	udp::socket socket(io_context, udp::endpoint(udp::v4(), 0));
+	sock = &socket;
 
 	udp::resolver resolver(io_context);
 	udp::resolver::results_type master_endpoints = resolver.resolve(udp::v4(), host, port);
 	master_endpoint = *master_endpoints.begin();
 
 	PaError err;
+
+	err = Pa_Initialize();
+	if(err != paNoError)
+		std::cerr << "Error starting portaudio\n";
+
 	PaStream *sink;
 	/* Open an audio I/O stream. */
 	err = Pa_OpenDefaultStream(
@@ -220,12 +223,12 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	socket.async_receive_from(asio::buffer(receive_handler.buffer, sizeof(receive_handler.buffer)), receive_handler.endpoint, &receive_handler);
+	sock->async_receive_from(asio::buffer(receive_handler.buffer, sizeof(receive_handler.buffer)), receive_handler.endpoint, receive_handler);
 
 	while (true) {
 		Pa_Sleep(100);
 		const char message[] = "imhere";
-		socket.async_send_to(asio::buffer(message, std::strlen(message)), master_receive_handler.endpoint, &master_send_handler);
+		sock->async_send_to(asio::buffer(message, std::strlen(message)), receive_handler.endpoint, master_send_handler);
 	}
 
 	return 0;

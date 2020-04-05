@@ -60,8 +60,8 @@ int sink_cb(
 	PaStreamCallbackFlags statusFlags,
 	void* userData
 ) {
-	std::memcpy(outputBuffer, mic_buffers[(buffer_idx + num_buffers - 1) % num_buffers], buffer_size * 2);
-	return 0;
+	//std::memcpy(outputBuffer, mic_buffers[(buffer_idx + num_buffers - 1) % num_buffers], buffer_size * 2);
+	//return 0;
 
 	int16_t* const out = (int16_t*)outputBuffer;
 	for (unsigned long frame = 0; frame < framesPerBuffer; ++frame) {
@@ -91,7 +91,7 @@ int source_cb(
 	PaStreamCallbackFlags statusFlags,
 	void* userData
 ) {
-	std::cout << ((int16_t*)inputBuffer)[0] << '\n';
+	//std::cout << ((int16_t*)inputBuffer)[0] << '\n';
 	std::memcpy(mic_buffers[buffer_idx], inputBuffer, framesPerBuffer * sizeof(int16_t));
 	mic_buffers[buffer_idx][buffer_size] = buffer_idx;
 	for (const auto& remote : remotes)

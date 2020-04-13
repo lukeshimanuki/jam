@@ -72,9 +72,9 @@ int sink_cb(
 	void* userData
 ) {
 	//lock.lock();
-	for (int32_t i = 0; i < buffer_size; ++i)
-		((int16_t*)outputBuffer)[i] = (i - buffer_size/2) * 200;
-	//std::memcpy(outputBuffer, mic_buffers[(buffer_idx + num_buffers - 1) % num_buffers], buffer_size * 2);
+	//for (int32_t i = 0; i < buffer_size; ++i)
+	//	((int16_t*)outputBuffer)[i] = (i - buffer_size/2) * 200;
+	std::memcpy(outputBuffer, mic_buffers[(buffer_idx + num_buffers - 1) % num_buffers], buffer_size * 2);
 	return 0;
 
 	int16_t* const out = (int16_t*)outputBuffer;
@@ -96,7 +96,7 @@ int sink_cb(
 		remote.second.play_buffer_idx = (remote.second.play_buffer_idx + num_buffers + 1) % num_buffers;
 	}
 
-	lock.unlock();
+	//lock.unlock();
 	return 0;
 }
 
@@ -107,7 +107,7 @@ int source_cb(
 	PaStreamCallbackFlags statusFlags,
 	void* userData
 ) {
-	lock.lock();
+	//lock.lock();
 	//std::cout << ((int16_t*)inputBuffer)[0] << '\n';
 	std::memcpy(mic_buffers[buffer_idx], inputBuffer, framesPerBuffer * sizeof(int16_t));
 	for (int32_t i = 0; i < buffer_size; ++i)
@@ -116,7 +116,7 @@ int source_cb(
 	for (const auto& remote : remotes)
 		sock.async_send_to(asio::buffer(mic_buffers[buffer_idx], (buffer_size + 1) * sizeof(int16_t)), remote.second.endpoint, remote.second.send_handler);
 	buffer_idx = (buffer_idx + 1) % num_buffers;
-	lock.unlock();
+	//lock.unlock();
 	return 0;
 }
 

@@ -17,7 +17,7 @@ constexpr size_t buffer_size = 128;
 constexpr size_t num_buffers = 256;
 size_t lag = 4; // in terms of number of buffers
 size_t buffer_idx = 0;
-int16_t mic_buffers[num_buffers][buffer_size];
+int16_t mic_buffers[num_buffers][buffer_size+1];
 size_t prev_sample_idx = 0;
 size_t sample_idx = 0;
 udp::endpoint master_endpoint;

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <map>
 #include <thread>
+#include <mutex>
 
 #include <asio.hpp>
 #include <portaudio.h>
@@ -23,6 +24,8 @@ asio::io_context io_context;
 asio::steady_timer timer(io_context);
 udp::socket sock(io_context, udp::endpoint(udp::v4(), 0));
 
+std::mutex lock;
+
 struct Remote {
 	udp::endpoint endpoint;
 	size_t last_buffer_idx;
@@ -38,6 +41,7 @@ struct Remote {
 				std::cerr << "Error sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n' << err << '\n';
 			//else std::cout << '.' << std::flush;
 			//else std::cout << "sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n';
+			//else std::cout << '-' << std::flush;
 		}
 		udp::endpoint endpoint;
 	} send_handler;
@@ -60,6 +64,7 @@ int sink_cb(
 	PaStreamCallbackFlags statusFlags,
 	void* userData
 ) {
+	lock.lock();
 	//std::memcpy(outputBuffer, mic_buffers[(buffer_idx + num_buffers - 1) % num_buffers], buffer_size * 2);
 	//return 0;
 
@@ -81,6 +86,8 @@ int sink_cb(
 			remote.second.play_buffer_idx -= 1;
 		remote.second.play_buffer_idx = (remote.second.play_buffer_idx + num_buffers + 1) % num_buffers;
 	}
+
+	lock.unlock();
 	return 0;
 }
 
@@ -91,12 +98,14 @@ int source_cb(
 	PaStreamCallbackFlags statusFlags,
 	void* userData
 ) {
+	lock.lock();
 	//std::cout << ((int16_t*)inputBuffer)[0] << '\n';
 	std::memcpy(mic_buffers[buffer_idx], inputBuffer, framesPerBuffer * sizeof(int16_t));
 	mic_buffers[buffer_idx][buffer_size] = buffer_idx;
 	for (const auto& remote : remotes)
 		sock.async_send_to(asio::buffer(mic_buffers[buffer_idx], (buffer_size + 1) * sizeof(int16_t)), remote.second.endpoint, remote.second.send_handler);
 	buffer_idx = (buffer_idx + 1) % num_buffers;
+	lock.unlock();
 	return 0;
 }
 
@@ -108,6 +117,7 @@ struct {
 		size_t bytes_transferred
 	) {
 		//std::cout << "received\n";
+		lock.lock();
 		if (err.value() != 0)
 			std::cerr << "Error receiving udp from master\n" << err << '\n';
 
@@ -136,6 +146,7 @@ struct {
 			const auto remote = remotes.find(key);
 			if (remote != remotes.end()) {
 				//std::cout << "remote\n";
+				//std::cout << "." << std::flush;
 				const size_t buffer_idx = receive_buffer[buffer_size];
 				std::memcpy(remote->second.buffers[buffer_idx], receive_buffer, buffer_size * sizeof(int16_t));
 				if (buffer_idx > remote->second.last_buffer_idx || buffer_idx < int32_t(remote->second.last_buffer_idx) - num_buffers / 2)
@@ -144,6 +155,7 @@ struct {
 		}
 
 		sock.async_receive_from(asio::buffer(receive_buffer, sizeof(receive_buffer)), receive_endpoint, *this);
+		lock.unlock();
 	}
 } receive_handler;
 
@@ -151,9 +163,12 @@ void master_send_handler(
     const asio::error_code& err,
     std::size_t bytes_transferred
 ) {
+	lock.lock();
+	const size_t num_remotes = remotes.size();
+	lock.unlock();
 	if (err.value() != 0)
 		std::cerr << "Error sending test udp to master\n" << err << '\n';
-	else std::cout << "connected to " << remotes.size() << " remotes\n";
+	else std::cout << "connected to " << num_remotes << " remotes\n";
 }
 
 void ping_master(const asio::error_code& err) {

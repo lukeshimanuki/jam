@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <map>
 #include <unordered_map>
+#include <vector>
 #include <thread>
 #include <mutex>
 
@@ -62,7 +63,7 @@ struct pair_hash {
 		return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
 	}
 };
-std::unordered_map<uint64_t, Remote> remotes;
+std::vector<std::pair<uint64_t, Remote> > remotes;
 
 int sink_cb(
 	const void* inputBuffer, void* outputBuffer,
@@ -80,14 +81,16 @@ int sink_cb(
 	int16_t* const out = (int16_t*)outputBuffer;
 	for (unsigned long frame = 0; frame < framesPerBuffer; ++frame) {
 		int32_t value = 0;
-		for (auto& remote : remotes) {
+		for (size_t i = 0; i < remotes.size(); ++i) {
+			auto& remote = remotes.at(i);
 			if (remote.second.last_buffer_idx >= remote.second.play_buffer_idx || 
 			(remote.second.last_buffer_idx < num_buffers / 4 && remote.second.play_buffer_idx > num_buffers * 3/4))
 				value += remote.second.buffers[remote.second.play_buffer_idx][frame];
 		}
 		out[frame] = value / std::max(1, int(remotes.size()));
 	}
-	for (auto& remote : remotes) {
+	for (size_t i = 0; i < remotes.size(); ++i) {
+		auto& remote = remotes.at(i);
 		if (remote.second.play_buffer_idx > num_buffers / 2 && remote.second.play_buffer_idx + 8 < remote.second.last_buffer_idx)
 			remote.second.play_buffer_idx += 3;
 		if (remote.second.last_buffer_idx < remote.second.play_buffer_idx &&
@@ -113,8 +116,10 @@ int source_cb(
 	//for (int32_t i = 0; i < buffer_size; ++i)
 	//	mic_buffers[buffer_idx][i] = (i - buffer_size/2) * 200;
 	mic_buffers[buffer_idx][buffer_size] = buffer_idx;
-	for (const auto& remote : remotes)
+	for (size_t i = 0; i < remotes.size(); ++i) {
+		const auto& remote = remotes.at(i);
 		sock.async_send_to(asio::buffer(mic_buffers[buffer_idx], (buffer_size + 1) * sizeof(int16_t)), remote.second.endpoint, remote.second.send_handler);
+	}
 	buffer_idx = (buffer_idx + 1) % num_buffers;
 	//lock.unlock();
 	return 0;
@@ -142,27 +147,31 @@ struct {
 
 			std::cout << (connect ? "connected " : "disconnected ") << address << ' ' << port << '\n';
 
-			const int64_t key = int64_t(address)*100000 + port;
+			const uint64_t key = uint64_t(address)*100000 + port;
 			if (connect) {
-				if (remotes.find(key) == remotes.end()) {
-					remotes.emplace(key, Remote(address, port));
-				}
+				bool found = false;
+				for (const auto& remote : remotes)
+					if (remote.first == key)
+						found = true;
+				if (!found) remotes.emplace_back(key, Remote(address, port));
 			} else {
-				if (remotes.find(key) != remotes.end())
-					remotes.erase(key);
+				for (size_t i = 0; i < remotes.size(); ++i)
+					if (remotes.at(i).first == key)
+						remotes.erase(remotes.begin() + i); // assume only one, otherwise need to not increment i
 			}
 		} else {
 			//std::cout << "other\n";
-			const int64_t key = int64_t(receive_endpoint.address().to_v4().to_ulong()) * 100000 + receive_endpoint.port();
-			const auto remote = remotes.find(key);
-			if (remote != remotes.end()) {
-				//std::cout << "remote\n";
-				//std::cout << "." << std::flush;
-				//std::cout << ((int16_t*)receive_buffer)[0] << ' ' << ((int16_t*)receive_buffer)[1] << ' ' << ((int16_t*)receive_buffer)[2] << '\n';
-				const size_t buffer_idx = receive_buffer[buffer_size];
-				std::memcpy(remote->second.buffers[buffer_idx], receive_buffer, buffer_size * sizeof(int16_t));
-				if (buffer_idx > remote->second.last_buffer_idx || buffer_idx < int32_t(remote->second.last_buffer_idx) - num_buffers / 2)
-					remote->second.last_buffer_idx = buffer_idx;
+			const uint64_t key = uint64_t(receive_endpoint.address().to_v4().to_ulong()) * 100000 + receive_endpoint.port();
+			for (auto& remote : remotes) {
+				if (remote.first == key) {
+					//std::cout << "remote\n";
+					//std::cout << "." << std::flush;
+					//std::cout << ((int16_t*)receive_buffer)[0] << ' ' << ((int16_t*)receive_buffer)[1] << ' ' << ((int16_t*)receive_buffer)[2] << '\n';
+					const size_t buffer_idx = receive_buffer[buffer_size];
+					std::memcpy(remote.second.buffers[buffer_idx], receive_buffer, buffer_size * sizeof(int16_t));
+					if (buffer_idx > remote.second.last_buffer_idx || buffer_idx < int32_t(remote.second.last_buffer_idx) - num_buffers / 2)
+						remote.second.last_buffer_idx = buffer_idx;
+				}
 			}
 		}
 

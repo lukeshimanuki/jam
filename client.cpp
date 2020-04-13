@@ -62,7 +62,7 @@ struct pair_hash {
 		return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
 	}
 };
-std::unordered_map<std::pair<uint32_t, uint16_t>, Remote, pair_hash> remotes;
+std::unordered_map<uint64_t, Remote> remotes;
 
 int sink_cb(
 	const void* inputBuffer, void* outputBuffer,
@@ -140,7 +140,7 @@ struct {
 
 			std::cout << (connect ? "connected " : "disconnected ") << address << ' ' << port << '\n';
 
-			const auto key = std::make_pair(address, port);
+			const auto key = address*100000 + port;
 			if (connect) {
 				if (remotes.find(key) == remotes.end()) {
 					remotes.emplace(key, Remote(address, port));
@@ -151,7 +151,7 @@ struct {
 			}
 		} else {
 			//std::cout << "other\n";
-			const auto key = std::make_pair(receive_endpoint.address().to_v4().to_ulong(), receive_endpoint.port());
+			const auto key = receive_endpoint.address().to_v4().to_ulong() * 100000 + receive_endpoint.port();
 			const auto remote = remotes.find(key);
 			if (remote != remotes.end()) {
 				//std::cout << "remote\n";

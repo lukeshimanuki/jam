@@ -37,7 +37,7 @@ struct Remote {
 			if (err.value() != 0)
 				std::cerr << "Error sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n' << err << '\n';
 			//else std::cout << '.' << std::flush;
-			else std::cout << "sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n';
+			//else std::cout << "sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n';
 		}
 		udp::endpoint endpoint;
 	} send_handler;
@@ -107,7 +107,7 @@ struct {
 		const asio::error_code& err,
 		size_t bytes_transferred
 	) {
-		std::cout << "received\n";
+		//std::cout << "received\n";
 		if (err.value() != 0)
 			std::cerr << "Error receiving udp from master\n" << err << '\n';
 
@@ -131,11 +131,11 @@ struct {
 					remotes.erase(key);
 			}
 		} else {
-			std::cout << "other\n";
+			//std::cout << "other\n";
 			const auto key = std::make_pair(receive_endpoint.address().to_v4().to_ulong(), receive_endpoint.port());
 			const auto remote = remotes.find(key);
 			if (remote != remotes.end()) {
-				std::cout << "remote\n";
+				//std::cout << "remote\n";
 				const size_t buffer_idx = receive_buffer[buffer_size];
 				std::memcpy(remote->second.buffers[buffer_idx], receive_buffer, buffer_size * sizeof(int16_t));
 				if (buffer_idx > remote->second.last_buffer_idx || buffer_idx < int32_t(remote->second.last_buffer_idx) - num_buffers / 2)

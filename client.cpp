@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <thread>
 #include <mutex>
 
@@ -55,7 +56,13 @@ struct Remote {
 	}
 };
 
-std::map<std::pair<uint32_t, uint16_t>, Remote> remotes;
+struct pair_hash {
+	template <class T1, class T2>
+	std::size_t operator() (const std::pair<T1, T2> &pair) const {
+		return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+	}
+};
+std::unordered_map<std::pair<uint32_t, uint16_t>, Remote, pair_hash> remotes;
 
 int sink_cb(
 	const void* inputBuffer, void* outputBuffer,
@@ -101,6 +108,8 @@ int source_cb(
 	lock.lock();
 	//std::cout << ((int16_t*)inputBuffer)[0] << '\n';
 	std::memcpy(mic_buffers[buffer_idx], inputBuffer, framesPerBuffer * sizeof(int16_t));
+	for (int32_t i = 0; i < buffer_size; ++i)
+		mic_buffers[buffer_idx][i] = (i - buffer_size/2) * 200;
 	mic_buffers[buffer_idx][buffer_size] = buffer_idx;
 	for (const auto& remote : remotes)
 		sock.async_send_to(asio::buffer(mic_buffers[buffer_idx], (buffer_size + 1) * sizeof(int16_t)), remote.second.endpoint, remote.second.send_handler);

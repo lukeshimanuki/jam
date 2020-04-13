@@ -142,7 +142,7 @@ struct {
 
 			std::cout << (connect ? "connected " : "disconnected ") << address << ' ' << port << '\n';
 
-			const auto key = address*100000 + port;
+			const int64_t key = int64_t(address)*100000 + port;
 			if (connect) {
 				if (remotes.find(key) == remotes.end()) {
 					remotes.emplace(key, Remote(address, port));
@@ -153,7 +153,7 @@ struct {
 			}
 		} else {
 			//std::cout << "other\n";
-			const auto key = receive_endpoint.address().to_v4().to_ulong() * 100000 + receive_endpoint.port();
+			const int64_t key = int64_t(receive_endpoint.address().to_v4().to_ulong()) * 100000 + receive_endpoint.port();
 			const auto remote = remotes.find(key);
 			if (remote != remotes.end()) {
 				//std::cout << "remote\n";

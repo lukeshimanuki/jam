@@ -30,8 +30,8 @@ std::mutex lock;
 
 struct Remote {
 	udp::endpoint endpoint;
-	size_t last_buffer_idx;
-	size_t play_buffer_idx;
+	int64_t last_buffer_idx;
+	int64_t play_buffer_idx;
 	int16_t buffers[num_buffers][buffer_size];
 
 	struct {
@@ -167,7 +167,7 @@ struct {
 					//std::cout << "remote\n";
 					//std::cout << "." << std::flush;
 					//std::cout << ((int16_t*)receive_buffer)[0] << ' ' << ((int16_t*)receive_buffer)[1] << ' ' << ((int16_t*)receive_buffer)[2] << '\n';
-					const size_t buffer_idx = receive_buffer[buffer_size];
+					const size_t buffer_idx = ((int16_t*)receive_buffer)[buffer_size];
 					std::memcpy(remote.second.buffers[buffer_idx], receive_buffer, buffer_size * sizeof(int16_t));
 					if (buffer_idx > remote.second.last_buffer_idx || buffer_idx < int32_t(remote.second.last_buffer_idx) - num_buffers / 2)
 						remote.second.last_buffer_idx = buffer_idx;

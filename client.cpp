@@ -71,9 +71,11 @@ int sink_cb(
 	PaStreamCallbackFlags statusFlags,
 	void* userData
 ) {
-	lock.lock();
+	//lock.lock();
+	for (int32_t i = 0; i < buffer_size; ++i)
+		((int16_t*)outputBuffer)[i] = (i - buffer_size/2) * 200;
 	//std::memcpy(outputBuffer, mic_buffers[(buffer_idx + num_buffers - 1) % num_buffers], buffer_size * 2);
-	//return 0;
+	return 0;
 
 	int16_t* const out = (int16_t*)outputBuffer;
 	for (unsigned long frame = 0; frame < framesPerBuffer; ++frame) {

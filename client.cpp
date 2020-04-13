@@ -35,9 +35,9 @@ struct Remote {
 			size_t bytes_transferred
 		) {
 			if (err.value() != 0)
-				std::cerr << "Error sending udp to " << endpoint.address() << '\n' << err << '\n';
+				std::cerr << "Error sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n' << err << '\n';
 			//else std::cout << '.' << std::flush;
-			//else std::cout << "sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n';
+			else std::cout << "sending udp to " << endpoint.address() << ' ' << endpoint.port() << '\n';
 		}
 		udp::endpoint endpoint;
 	} send_handler;

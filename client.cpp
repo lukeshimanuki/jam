@@ -110,8 +110,8 @@ int source_cb(
 	//lock.lock();
 	//std::cout << ((int16_t*)inputBuffer)[0] << '\n';
 	std::memcpy(mic_buffers[buffer_idx], inputBuffer, framesPerBuffer * sizeof(int16_t));
-	for (int32_t i = 0; i < buffer_size; ++i)
-		mic_buffers[buffer_idx][i] = (i - buffer_size/2) * 200;
+	//for (int32_t i = 0; i < buffer_size; ++i)
+	//	mic_buffers[buffer_idx][i] = (i - buffer_size/2) * 200;
 	mic_buffers[buffer_idx][buffer_size] = buffer_idx;
 	for (const auto& remote : remotes)
 		sock.async_send_to(asio::buffer(mic_buffers[buffer_idx], (buffer_size + 1) * sizeof(int16_t)), remote.second.endpoint, remote.second.send_handler);

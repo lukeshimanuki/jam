@@ -128,7 +128,7 @@ struct {
 		size_t bytes_transferred
 	) {
 		//std::cout << "received\n";
-		lock.lock();
+		//lock.lock();
 		if (err.value() != 0)
 			std::cerr << "Error receiving udp from master\n" << err << '\n';
 
@@ -158,6 +158,7 @@ struct {
 			if (remote != remotes.end()) {
 				//std::cout << "remote\n";
 				//std::cout << "." << std::flush;
+				//std::cout << ((int16_t*)receive_buffer)[0] << ' ' << ((int16_t*)receive_buffer)[1] << ' ' << ((int16_t*)receive_buffer)[2] << '\n';
 				const size_t buffer_idx = receive_buffer[buffer_size];
 				std::memcpy(remote->second.buffers[buffer_idx], receive_buffer, buffer_size * sizeof(int16_t));
 				if (buffer_idx > remote->second.last_buffer_idx || buffer_idx < int32_t(remote->second.last_buffer_idx) - num_buffers / 2)
@@ -166,7 +167,7 @@ struct {
 		}
 
 		sock.async_receive_from(asio::buffer(receive_buffer, sizeof(receive_buffer)), receive_endpoint, *this);
-		lock.unlock();
+		//lock.unlock();
 	}
 } receive_handler;
 
@@ -174,9 +175,9 @@ void master_send_handler(
     const asio::error_code& err,
     std::size_t bytes_transferred
 ) {
-	lock.lock();
+	//lock.lock();
 	const size_t num_remotes = remotes.size();
-	lock.unlock();
+	//lock.unlock();
 	if (err.value() != 0)
 		std::cerr << "Error sending test udp to master\n" << err << '\n';
 	else std::cout << "connected to " << num_remotes << " remotes\n";

@@ -88,7 +88,7 @@ int sink_cb(
 			(remote.second.last_buffer_idx < num_buffers / 4 && remote.second.play_buffer_idx > num_buffers * 3/4))
 				value += remote.second.buffers[remote.second.play_buffer_idx][frame];
 		}
-		out[frame] = value / std::max(1, int(remotes.size()));
+		out[frame] = std::max(int32_t(std::numeric_limits<int16_t>::min()), std::min(int32_t(std::numeric_limits<int16_t>::max()), value));
 	}
 	for (size_t i = 0; i < remotes.size(); ++i) {
 		auto& remote = remotes.at(i);

@@ -17,6 +17,7 @@ constexpr size_t buffer_size = 128;
 constexpr size_t num_buffers = 256;
 size_t lag = 4; // in terms of number of buffers
 size_t buffer_idx = 0;
+size_t PACKET_BUFFER_SIZE = 12; // maximum number packets to keep in reserve (average is half this)
 int16_t mic_buffers[num_buffers][buffer_size+1];
 size_t prev_sample_idx = 0;
 size_t sample_idx = 0;
@@ -91,8 +92,8 @@ int sink_cb(
 	}
 	for (size_t i = 0; i < remotes.size(); ++i) {
 		auto& remote = remotes.at(i);
-		if (remote.second.play_buffer_idx > num_buffers / 2 && remote.second.play_buffer_idx + 8 < remote.second.last_buffer_idx)
-			remote.second.play_buffer_idx += 3;
+		if (remote.second.play_buffer_idx > num_buffers / 2 && remote.second.play_buffer_idx + PACKET_BUFFER_SIZE < remote.second.last_buffer_idx)
+			remote.second.play_buffer_idx += PACKET_BUFFER_SIZE/2;
 		if (remote.second.last_buffer_idx < remote.second.play_buffer_idx &&
 		!(remote.second.play_buffer_idx > num_buffers * 3/4 && remote.second.last_buffer_idx < num_buffers / 4))
 			remote.second.play_buffer_idx -= 1;
@@ -206,7 +207,7 @@ void ping_master(const asio::error_code& err) {
 int main(int argc, char* argv[]) {
 	const size_t max_length = 1024;
 	const size_t sample_rate = 22050;
-	const char default_host[] = "ec2-18-188-147-41.us-east-2.compute.amazonaws.com";
+	const char default_host[] = "aws.shimanuki.cc";
 	const char default_port[] = "3141";
 
 	const char* const host = argc >= 2 ? argv[1] : default_host;

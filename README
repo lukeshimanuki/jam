@@ -1,0 +1,17 @@
+Building on Mac
+
+- install g++ and homebrew
+- `brew install portaudio`
+- `./build-mac.sh`
+- `./client`
+
+Building on Linux
+
+- install Portaudio, g++, and make using your package manager
+- `make client`
+- `./client`
+
+Building on Windows
+
+- good luck you're on your own
+

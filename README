@@ -1,13 +1,15 @@
 Building on Mac
 
-- install g++ and homebrew
+- install g++, git, and homebrew
 - `brew install portaudio`
+- `git submodule update --init --recursive`
 - `./build-mac.sh`
 - `./client`
 
 Building on Linux
 
-- install Portaudio, g++, and make using your package manager
+- install Portaudio, g++, git, and make using your package manager
+- `git submodule update --init --recursive`
 - `make client`
 - `./client`
 

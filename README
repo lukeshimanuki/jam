@@ -1,19 +1,7 @@
-Building on Mac
-
-- install g++, git, and homebrew
-- `brew install portaudio`
+Build instructions:
+- install g++, cmake, and make.
 - `git submodule update --init --recursive`
-- `./build-mac.sh`
-- `./client`
-
-Building on Linux
-
-- install Portaudio, g++, git, and make using your package manager
-- `git submodule update --init --recursive`
-- `make client`
-- `./client`
-
-Building on Windows
-
-- good luck you're on your own
+- `mkdir -p build`
+- `cd build && cmake .. && make`
+- `build/jam`
 

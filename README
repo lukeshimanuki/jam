@@ -1,7 +1,7 @@
-Build instructions:
+Client build instructions:
 - install g++, cmake, and make.
 - `git submodule update --init --recursive`
 - `mkdir -p build`
-- `cd build && cmake .. && make`
+- `cd build && cmake .. && make jam && cd ..`
 - `build/jam`
 

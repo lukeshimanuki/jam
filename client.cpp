@@ -204,11 +204,14 @@ void ping_master(const asio::error_code& err) {
 	timer.async_wait(ping_master);
 }
 
+#define STRINGIFY_(x) #x
+#define STRINGIFY(x) STRINGIFY_(x)
+
 int main(int argc, char* argv[]) {
 	const size_t max_length = 1024;
 	const size_t sample_rate = 22050;
-	const char default_host[] = "aws.shimanuki.cc";
-	const char default_port[] = "3141";
+	const char default_host[] = STRINGIFY(HOST);
+	const char default_port[] = STRINGIFY(PORT);
 
 	const char* const host = argc >= 2 ? argv[1] : default_host;
 	const char* const port = argc >= 3 ? argv[2] : default_port;

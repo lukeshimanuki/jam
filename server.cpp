@@ -6,8 +6,7 @@
 
 int main(int argc, char* argv[]) {
 	const size_t max_length = 1024;
-	const unsigned short default_port = 3141;
-	const unsigned short port = argc >= 2 ? std::atoi(argv[1]) : default_port;
+	const unsigned short port = argc >= 2 ? std::atoi(argv[1]) : PORT;
 
 	std::map<std::pair<uint32_t, uint16_t>, std::chrono::system_clock::time_point> remotes;
 

@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <map>
 
@@ -14,13 +15,17 @@ int main(int argc, char* argv[]) {
 	asio::io_context io_context;
 	udp::socket sock(io_context, udp::endpoint(udp::v4(), port));
 
-	std::cout << "listening...\n";
+	std::cout << "listening on " << port << '\n';
 	while (true) {
 		char inputdata[max_length];
 		udp::endpoint endpoint;
 		size_t length = sock.receive_from(asio::buffer(inputdata, max_length), endpoint);
 		std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
 		const auto key = std::make_pair(endpoint.address().to_v4().to_ulong(), endpoint.port());
+		if (std::strncmp(inputdata, "imhere", 6) != 0) {
+			std::cout << "invalid ping from " << key.first << ' ' << key.second << '\n';
+			continue;
+		}
 		const auto remote = remotes.find(key);
 		if (remote == remotes.end()) {
 			// connect

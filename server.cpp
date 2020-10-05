@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 	asio::io_context io_context;
 	udp::socket sock(io_context, udp::endpoint(udp::v4(), port));
 
-	std::cout << "listening on " << port << '\n';
+	std::cout << "listening on " << port << '\n' << std::flush;
 	while (true) {
 		char inputdata[max_length];
 		udp::endpoint endpoint;

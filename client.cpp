@@ -13,11 +13,12 @@
 
 using asio::ip::udp;
 
+double jitter = JITTER;
+
 constexpr size_t buffer_size = 128;
 constexpr size_t num_buffers = 256;
-size_t lag = 4; // in terms of number of buffers
+constexpr size_t sample_rate = 22050;
 size_t buffer_idx = 0;
-size_t PACKET_BUFFER_SIZE = 12; // maximum number packets to keep in reserve (average is half this)
 int16_t mic_buffers[num_buffers][buffer_size+1];
 size_t prev_sample_idx = 0;
 size_t sample_idx = 0;
@@ -73,6 +74,8 @@ int sink_cb(
 	PaStreamCallbackFlags statusFlags,
 	void* userData
 ) {
+	const size_t packet_buffer_size = size_t(2 * jitter/1000. * sample_rate / buffer_size + .5); // maximum number packets to keep in reserve (average is half this)
+
 	//lock.lock();
 	//for (int32_t i = 0; i < buffer_size; ++i)
 	//	((int16_t*)outputBuffer)[i] = (i - buffer_size/2) * 200;
@@ -92,8 +95,8 @@ int sink_cb(
 	}
 	for (size_t i = 0; i < remotes.size(); ++i) {
 		auto& remote = remotes.at(i);
-		if (remote.second.play_buffer_idx > num_buffers / 2 && remote.second.play_buffer_idx + PACKET_BUFFER_SIZE < remote.second.last_buffer_idx)
-			remote.second.play_buffer_idx += PACKET_BUFFER_SIZE/2;
+		if (remote.second.play_buffer_idx > num_buffers / 2 && remote.second.play_buffer_idx + packet_buffer_size < remote.second.last_buffer_idx)
+			remote.second.play_buffer_idx += packet_buffer_size/2;
 		if (remote.second.last_buffer_idx < remote.second.play_buffer_idx &&
 		!(remote.second.play_buffer_idx > num_buffers * 3/4 && remote.second.last_buffer_idx < num_buffers / 4))
 			remote.second.play_buffer_idx -= 1;
@@ -209,12 +212,15 @@ void ping_master(const asio::error_code& err) {
 
 int main(int argc, char* argv[]) {
 	const size_t max_length = 1024;
-	const size_t sample_rate = 22050;
 	const char default_host[] = STRINGIFY(HOST);
 	const char default_port[] = STRINGIFY(PORT);
 
 	const char* const host = argc >= 2 ? argv[1] : default_host;
 	const char* const port = argc >= 3 ? argv[2] : default_port;
+
+	if (argc >= 3) jitter = std::atoi(argv[3]);
+
+	std::cout << "host: " << host << "\nport: " << port << "\njitter: " << jitter << '\n' << std::flush;
 
 	udp::resolver resolver(io_context);
 	udp::resolver::results_type master_endpoints = resolver.resolve(udp::v4(), host, port);

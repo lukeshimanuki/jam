@@ -4,6 +4,7 @@ project(JAM)
 
 set(HOST "aws.shimanuki.cc" CACHE STRING "The host of the server that the client connects to by default.")
 set(PORT "3141" CACHE STRING "The port the server listens on and the client connects to by default.")
+set(JITTER "15" CACHE STRING "The typical jitter (ms) of incoming messages.")
 
 add_subdirectory(portaudio EXCLUDE_FROM_ALL)
 
@@ -27,7 +28,7 @@ endif()
 # Include asio.
 include_directories(asio/asio/include)
 
-add_definitions(-DHOST=${HOST} -DPORT=${PORT})
+add_definitions(-DHOST=${HOST} -DPORT=${PORT} -DJITTER=${JITTER})
 
 # Compile client.
 add_executable(jam client.cpp)
